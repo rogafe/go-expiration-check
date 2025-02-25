@@ -53,32 +53,72 @@ To use this project with GitHub Actions and check a number of domains every morn
 2. Add the following workflow file to `.github/workflows/check-domains.yml`:
 
     ```yaml
-    name: Check Domain Expirations
+        name: Check Domain Expirations
 
-    on:
-      schedule:
-        - cron: '0 8 * * *'
+        on:
+        schedule:
+            - cron: '0 8 * * *'
 
-    jobs:
-      check-domains:
-        runs-on: ubuntu-latest
+        jobs:
+        check-domains:
+            runs-on: ubuntu-latest
 
-        steps:
-          - name: Checkout repository
-            uses: actions/checkout@v2
+            steps:
+            - name: Checkout repository
+                uses: actions/checkout@v2
 
-          - name: Set up Go
-            uses: actions/setup-go@v2
-            with:
-              go-version: '1.16'
+            - name: Set up Go
+                uses: actions/setup-go@v2
+                with:
+                go-version: '1.16'
 
-          - name: Install go-expiration-check
-            run: |
-              go install github.com/rogafe/go-expiration-check@latest
+            - name: Install Apprise
+                run: |
+                pip install apprise
 
-          - name: Check domain expirations
-            run: |
-              go-expiration-check check --domain example.com,example.org --output json
+            - name: Install go-expiration-check
+                run: |
+                go install github.com/rogafe/go-expiration-check@latest
+
+            - name: Check domain expirations
+                id: check_domains
+                run: |
+                # Run the expiration check and output JSON to result.json
+                go-expiration-check check --domain example.com,example.org --output json > result.json
+
+            - name: Evaluate domain expiration threshold
+                id: evaluate
+                run: |
+                THRESHOLD=30
+                # Check if any domain is expiring in THRESHOLD days or less
+                if jq -e ".[] | select(.days_to_expire <= \$THRESHOLD)" result.json > /dev/null; then
+                    echo "notification_needed=true" >> $GITHUB_OUTPUT
+                else
+                    echo "notification_needed=false" >> $GITHUB_OUTPUT
+                fi
+
+            - name: Create notification message template
+                id: create_message
+                run: |
+                # Build a message template with the domain details.
+                MESSAGE="Domain Expiration Alert:\n"
+                while IFS= read -r row; do
+                    domain=$(echo "$row" | jq -r '.domain_name')
+                    registrar=$(echo "$row" | jq -r '.registrar')
+                    expiry=$(echo "$row" | jq -r '.expiry_date')
+                    days=$(echo "$row" | jq -r '.days_to_expire')
+                    MESSAGE+="\nDomain: $domain\nRegistrar: $registrar\nExpiry Date: $expiry\nDays to Expire: $days\n"
+                done < <(jq -c '.[]' result.json)
+                echo "$MESSAGE" > message.txt
+                # Also output the message to an action output variable if needed
+                echo "message<<EOF" >> $GITHUB_OUTPUT
+                echo "$MESSAGE" >> $GITHUB_OUTPUT
+                echo "EOF" >> $GITHUB_OUTPUT
+
+            - name: Send notification if any domain is near renewal
+                if: steps.evaluate.outputs.notification_needed == 'true'
+                run: |
+                apprise -u "${{ secrets.APPRISE_URL }}" -b "$(cat message.txt)"
     ```
 
 ## Contributing
