@@ -1,0 +1,61 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of `go build` / `go install`
+*.out
+
+# Go workspaces (Go 1.18+)
+go.work
+go.work.sum
+
+# Coverage and profiling outputs
+coverage.out
+*.cover
+*.coverprofile
+*.coverage
+*.cov
+*.gcov
+*.gcda
+*.gcno
+*.prof
+*.pprof
+cpu.prof
+mem.prof
+heap.prof
+block.prof
+mutex.prof
+trace.out
+
+# Build artifacts and temp directories
+bin/
+dist/
+build/
+out/
+release/
+tmp/
+*.log
+
+# Dependency directory (uncomment if you vendor your deps)
+# vendor/
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+*.iml
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
